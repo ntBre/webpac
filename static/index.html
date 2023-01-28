@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>My test page</title>
+  </head>
+  <body>
+
+    <label for="geometry">Enter your geometry in Å:</label>
+    <br>
+    <textarea id="geometry" name="geometry" rows="5" cols="80"></textarea>
+
+    <br>
+    <label for="opt">Does it need to be optimized?</label>
+    <input type="checkbox" id="opt" name="opt">
+
+    {{.body}}
+
+    <fieldset>
+      <legend>Coordinate type</legend>
+
+      <div>
+	<input type="radio" id="sic" name="coord_type" value="sic">
+	<label for="sic">SIC</label>
+      </div>
+
+      <div>
+	<input type="radio" id="cart" name="coord_type" value="cart">
+	<label for="cart">Cart</label>
+      </div>
+
+      <div>
+	<input type="radio" id="norm" name="coord_type" value="normal" checked>
+	<label for="norm">Norm</label>
+      </div>
+    </fieldset>
+
+    <br>
+    <label for="template">Enter your template input file:</label>
+    <br>
+    <textarea id="template" name="template" rows="5"
+	      cols="80">scfcrt=1.D-21 aux(precision=14) PM6 SINGLET THREADS=1</textarea>
+
+    <br>
+    <button name="run">Run</button>
+
+    <script src="js/config.js"></script>
+  </body>
+</html>
