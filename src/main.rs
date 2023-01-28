@@ -2,8 +2,9 @@ use actix_files::NamedFile;
 use actix_web::{
     web, App, HttpRequest, HttpResponse, HttpServer, Responder, Result,
 };
-use rust_pbqff::config::{Config, CoordType, Geom, Program, Queue};
-use std::{error::Error, fmt::Write, sync::RwLock};
+use psqs::program::mopac::Mopac;
+use rust_pbqff::{config::Config, coord_type::normal::Normal};
+use std::{error::Error, fmt::Write};
 
 macro_rules! input {
     ($w:expr, $name:expr, $label:expr, $value:expr) => {
@@ -36,13 +37,26 @@ async fn index() -> impl Responder {
 }
 
 async fn run(
-    data: web::Data<State>,
     item: String,
 ) -> std::result::Result<HttpResponse, Box<dyn Error>> {
     let config: Config = serde_json::from_str(&item)?;
-    let mut d = data.config.write().unwrap();
-    *d = config;
-    Ok(HttpResponse::Ok().finish())
+    use rust_pbqff::coord_type::CoordType;
+    let (s, o) = <rust_pbqff::coord_type::normal::Normal as CoordType<
+        _,
+        _,
+        Mopac,
+    >>::run(
+        Normal::findiff(false),
+        &mut std::io::stderr(),
+        &psqs::queue::local::Local::new(
+            "/tmp",
+            config.chunk_size,
+            "/opt/mopac/mopac",
+        ),
+        &config,
+    );
+    let body = format!("{s}\n{o}");
+    Ok(HttpResponse::Ok().body(body))
 }
 
 macro_rules! file_handlers {
@@ -62,45 +76,10 @@ file_handlers! {
     js_file => "js/",
 }
 
-struct State {
-    config: RwLock<Config>,
-}
-
-impl State {
-    fn new() -> Self {
-        let config = Config {
-            geometry: Geom::Zmat(String::new()),
-            optimize: false,
-            charge: 0,
-            step_size: 0.005,
-            coord_type: CoordType::Normal,
-            template: String::new(),
-            program: Program::Mopac,
-            queue: Queue::Local,
-            sleep_int: 10,
-            job_limit: 1024,
-            chunk_size: 1,
-            findiff: false,
-            check_int: 100,
-        };
-        Self {
-            config: RwLock::new(config),
-        }
-    }
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let state = web::Data::new(State::new());
-    HttpServer::new(move || {
+    HttpServer::new(|| {
         App::new()
-            .app_data(state.clone())
             .service(web::resource("/run").route(web::post().to(run)))
             .route("/js/{filename:.*}", web::get().to(js_file))
             .route("/", web::get().to(index))
